@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Demo network security config: permit cleartext (http://) traffic.
+
+  Why: Android 9+ (targetSdk 28+) blocks cleartext HTTP by default. Self-hosted /
+  enterprise OpenAI-compatible gateways often only expose http, which causes
+  UnknownServiceException: CLEARTEXT communication ... not permitted.
+
+  For production: switch baseUrl to https, then remove this file and the
+  android:networkSecurityConfig attribute in AndroidManifest.xml.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
