@@ -69,6 +69,13 @@ class HeadlessReporter(private val appContext: Context) {
                 Log.i(TAG, "tool_denied name=${ev.call.name} (set --ez allowDangerous true to permit)")
             is AgentEvent.LoopFinished -> Unit // 总结在 onFinished
             is AgentEvent.LoopError -> Unit // 总结在 onFailed
+            is AgentEvent.SubAgentStarted ->
+                Log.i(TAG, "sub_agent_start callId=${ev.callId} type=${ev.agentType} depth=${ev.depth} task=${ev.task.take(MAX)}")
+            is AgentEvent.SubAgentInnerEvent ->
+                // 子循环里的事件递归走同一份处理逻辑,日志前缀里带上 depth 便于分层阅读。
+                Log.i(TAG, "sub_agent_inner depth=${ev.depth} callId=${ev.callId} -> ${ev.inner.javaClass.simpleName}")
+            is AgentEvent.SubAgentFinished ->
+                Log.i(TAG, "sub_agent_done callId=${ev.callId} type=${ev.agentType} reason=${ev.reason} text=${ev.finalText.take(MAX)}")
         }
     }
 

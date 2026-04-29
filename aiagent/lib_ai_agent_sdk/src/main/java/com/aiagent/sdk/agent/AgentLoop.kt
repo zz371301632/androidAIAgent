@@ -44,17 +44,20 @@ class AgentLoop(
     private val llm: LlmClient,
     private val tools: ToolRegistry,
     private val confirmDangerous: suspend (Tool, JSONObject) -> Boolean = { _, _ -> true },
+    private val subAgents: SubAgentRegistry = SubAgentRegistry.EMPTY,
 ) {
 
     /**
-     * Tool 派发链:Skill 调度优先,其次普通 ToolRegistry。
-     * 未来若引入 MCP / Sub-Agent / Memory tool,只需在链上加一节,主循环零修改。
+     * Tool 派发链:Skill 调度优先,然后是 Sub-Agent 委派(若注册了 preset),最后才是
+     * 普通 ToolRegistry。SubAgent 放在 Registry 之前,避免业务侧不小心把同名工具
+     * 注册到 Registry 后遮蔽 `call_sub_agent`。
      */
     private val toolInvoker: ToolInvoker = CompositeToolInvoker(
-        listOf(
-            SkillToolInvoker,
-            RegistryToolInvoker(tools, confirmDangerous),
-        ),
+        buildList {
+            add(SkillToolInvoker)
+            if (!subAgents.isEmpty()) add(SubAgentInvoker(llm, tools, subAgents))
+            add(RegistryToolInvoker(tools, confirmDangerous))
+        },
     )
 
     /** 跑一轮用户输入。返回的 Flow 在 LoopFinished / LoopError 之后自然结束。 */
@@ -102,7 +105,10 @@ class AgentLoop(
         // 业务工具严格按 activeToolNames 白名单过滤:Claude 风格下默认空集,
         // 模型只能看到 SkillCallTools(list_skills/load_skill);
         // load_skill 后 activeToolNames 才会扩到对应 skill 的工具集。
-        val schemas = SkillCallTools.ALL + tools.listSchemas(session.activeToolNames())
+        // SubAgentTools 仅在 SubAgentRegistry 非空时注入,空注册表 = 行为退化为历史版本。
+        val schemas = SkillCallTools.ALL +
+            SubAgentTools.schemasFor(subAgents) +
+            tools.listSchemas(session.activeToolNames())
         log.loop(
             "round=$round/${session.maxRounds} loaded=${session.loadedSkillIds} " +
                 "messages=${messages.size} toolSchemas=${schemas.size}"

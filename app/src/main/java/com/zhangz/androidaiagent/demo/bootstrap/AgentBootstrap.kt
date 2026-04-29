@@ -11,6 +11,8 @@ import com.aiagent.sdk.agent.AgentSession
 import com.aiagent.sdk.agent.FinishReason
 import com.aiagent.sdk.llm.LlmClient
 import com.aiagent.sdk.llm.LlmClientFactory
+import com.aiagent.sdk.agent.SubAgentPreset
+import com.aiagent.sdk.agent.SubAgentRegistry
 import com.aiagent.sdk.log.AgentLoggerHolder
 import com.aiagent.sdk.skill.CodeSkill
 import com.aiagent.sdk.skill.SkillRegistry
@@ -49,11 +51,19 @@ object AgentBootstrap {
 
     val llmClient: LlmClient by lazy { installOnce(); LlmClientFactory.create(AgentConfig.activeProfile()) }
 
+    /**
+     * 演示用 Sub-Agent 注册表。注册了两个对照预设(researcher / coder),
+     * 父 Agent 会通过 `call_sub_agent(agent_type=...)` 把子任务委派给它们。
+     * 业务接入时按需精简或扩展 —— 留空集即可关闭 Sub-Agent 能力,
+     * 此时 [AgentLoop] 不会向模型暴露 `call_sub_agent` 工具。
+     */
+    val subAgents: SubAgentRegistry by lazy { buildSubAgentRegistry() }
+
     val isReady: Boolean get() = AgentConfig.isConfigured
 
     fun newAgentLoop(
         confirmDangerous: suspend (Tool, JSONObject) -> Boolean = { _, _ -> true },
-    ): AgentLoop = AgentLoop(llmClient, tools, confirmDangerous)
+    ): AgentLoop = AgentLoop(llmClient, tools, confirmDangerous, subAgents)
 
     // ── Headless 任务调度 ─────────────────────────────────────────────────────────
     //   HeadlessAgentActivity.onCreate
@@ -143,5 +153,34 @@ object AgentBootstrap {
 
     private fun buildSkillRegistry(): SkillRegistry = SkillRegistry().apply {
         AiCapabilityRegistry.snapshotSkills().forEach { register(CodeSkill(it)) }
+    }
+
+    /**
+     * 两个对照预设:研究员擅长信息整理 / 程序员擅长写代码。两者都没有 baseToolNames,
+     * 想用 demo 工具就要自己 list_skills + load_skill,与父 Agent 保持一致的渐进披露。
+     */
+    private fun buildSubAgentRegistry(): SubAgentRegistry = SubAgentRegistry().apply {
+        register(
+            SubAgentPreset(
+                id = "researcher",
+                displayName = "研究员",
+                description = "擅长信息整理、事实查证、给出有依据的简短结论。" +
+                    "需要查时间 / 对比方案 / 总结文本时把子任务派给我。",
+                persona = "你是一名细致严谨的研究员。回答时优先调用可用工具拿事实," +
+                    "无法解决再说明限制。结论控制在 200 字以内,不展开闲聊,不输出代码。",
+                maxRounds = 4,
+            )
+        )
+        register(
+            SubAgentPreset(
+                id = "coder",
+                displayName = "程序员",
+                description = "擅长写代码片段、修小 bug、解释技术概念。" +
+                    "需要产出代码或技术解释时把子任务派给我。",
+                persona = "你是一名专业程序员。优先给出可直接复制的代码块,再用一两句话说明思路。" +
+                    "默认 Kotlin,除非用户指定别的语言。单次实现不超过 50 行。",
+                maxRounds = 4,
+            )
+        )
     }
 }

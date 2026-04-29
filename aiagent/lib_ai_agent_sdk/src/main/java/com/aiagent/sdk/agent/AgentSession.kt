@@ -21,6 +21,11 @@ class AgentSession(
     val basePersona: String,
     val baseToolNames: Set<String> = emptySet(),
     val maxRounds: Int = DEFAULT_MAX_ROUNDS,
+    /**
+     * 嵌套深度:顶层会话 = 0,被 [com.aiagent.sdk.agent.SubAgentInvoker] 派生出的
+     * 子会话 = 父深度 + 1,递归上限由 [SubAgentInvoker.MAX_DEPTH] 强制。
+     */
+    val depth: Int = 0,
 ) {
 
     private val history = mutableListOf<Message>()

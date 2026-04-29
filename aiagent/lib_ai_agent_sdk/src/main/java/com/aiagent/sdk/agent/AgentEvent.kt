@@ -35,6 +35,37 @@ sealed interface AgentEvent {
 
     /** 框架级异常(网络 / 解析 / 取消)。 */
     data class LoopError(val cause: Throwable) : AgentEvent
+
+    // ── Sub-Agent 委派事件 ─────────────────────────────────────────────────────
+    // 父会话调用 call_sub_agent 时,SDK 会现拉一个子 AgentLoop。子循环里产生的
+    // 所有 AgentEvent 会被 [com.aiagent.sdk.agent.SubAgentInvoker] 包成
+    // [SubAgentInnerEvent] 转发给父 flow,UI 据此可做嵌套渲染。
+    //
+    // 三件套:Started → Inner* → Finished;callId 与父循环里的 ToolCall.id 同步,
+    // 便于 UI 把这一组事件挂到对应的 call_sub_agent 工具卡片上。
+
+    /** 子 Agent 委派开始:从父视角看,已经决定要派,但还没真跑第一轮 LLM。 */
+    data class SubAgentStarted(
+        val callId: String,
+        val agentType: String,
+        val task: String,
+        val depth: Int,
+    ) : AgentEvent
+
+    /** 子循环里一条原始事件。父 UI 应递归走相同的渲染逻辑。 */
+    data class SubAgentInnerEvent(
+        val callId: String,
+        val depth: Int,
+        val inner: AgentEvent,
+    ) : AgentEvent
+
+    /** 子 Agent 委派结束:[finalText] 是即将以 tool 消息形式回灌给父模型的最终文本。 */
+    data class SubAgentFinished(
+        val callId: String,
+        val agentType: String,
+        val finalText: String,
+        val reason: FinishReason,
+    ) : AgentEvent
 }
 
 /** AgentLoop 终止原因。 */

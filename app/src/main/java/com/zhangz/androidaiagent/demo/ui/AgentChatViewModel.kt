@@ -8,6 +8,8 @@ import com.aiagent.sdk.agent.AgentEvent
 import com.aiagent.sdk.agent.AgentLoop
 import com.aiagent.sdk.agent.AgentPromptDefaults
 import com.aiagent.sdk.agent.AgentSession
+import com.aiagent.sdk.agent.FinishReason
+import com.aiagent.sdk.agent.SubAgentTools
 import com.aiagent.sdk.llm.ToolCall
 import com.zhangz.androidaiagent.demo.bootstrap.AgentBootstrap
 import kotlinx.coroutines.CompletableDeferred
@@ -88,12 +90,19 @@ class AgentChatViewModel : ViewModel() {
                 }
                 _state.update { it.copy(streamingText = "") }
             }
-            is AgentEvent.ToolCallStarted -> appendBubble(toolBubble(ev.call, ToolUiState.Running))
+            is AgentEvent.ToolCallStarted -> {
+                // call_sub_agent 已经由 SubAgentStarted/Finished 表达,不再额外画工具气泡。
+                if (ev.call.name != SubAgentTools.NAME_CALL) {
+                    appendBubble(toolBubble(ev.call, ToolUiState.Running))
+                }
+            }
             is AgentEvent.ToolCallCompleted -> {
-                updateToolBubble(ev.call) { b ->
-                    when (val r = ev.result) {
-                        is ToolResult.Success -> b.copy(state = ToolUiState.Success, output = r.content)
-                        is ToolResult.Failure -> b.copy(state = ToolUiState.Failure, output = r.message)
+                if (ev.call.name != SubAgentTools.NAME_CALL) {
+                    updateToolBubble(ev.call) { b ->
+                        when (val r = ev.result) {
+                            is ToolResult.Success -> b.copy(state = ToolUiState.Success, output = r.content)
+                            is ToolResult.Failure -> b.copy(state = ToolUiState.Failure, output = r.message)
+                        }
                     }
                 }
                 _state.update { it.copy(loadedSkillIds = session.loadedSkillIds.toList()) }
@@ -101,11 +110,97 @@ class AgentChatViewModel : ViewModel() {
             is AgentEvent.ConfirmationDenied -> appendBubble(
                 toolBubble(ev.call, ToolUiState.Denied, output = "已取消"),
             )
+            is AgentEvent.SubAgentStarted -> appendBubble(
+                ChatBubble.SubAgentBubble(
+                    id = nextId.getAndIncrement(),
+                    callId = ev.callId,
+                    agentType = ev.agentType,
+                    task = ev.task,
+                    depth = ev.depth,
+                    state = ToolUiState.Running,
+                ),
+            )
+            is AgentEvent.SubAgentInnerEvent -> _state.update { s ->
+                s.copy(bubbles = applyToSubAgent(s.bubbles, ev.callId) { sub ->
+                    sub.copy(inner = applyInnerEvent(sub.inner, ev.inner))
+                })
+            }
+            is AgentEvent.SubAgentFinished -> _state.update { s ->
+                s.copy(bubbles = applyToSubAgent(s.bubbles, ev.callId) { sub ->
+                    sub.copy(
+                        state = if (ev.reason == FinishReason.Stop) ToolUiState.Success
+                        else ToolUiState.Failure,
+                        finalText = ev.finalText,
+                    )
+                })
+            }
             is AgentEvent.LoopFinished -> Unit // 状态在 finally 里处理
             is AgentEvent.LoopError -> _state.update {
                 it.copy(error = ev.cause.message ?: ev.cause.javaClass.simpleName)
             }
         }
+    }
+
+    /**
+     * 在气泡树里递归找到 callId 对应的 SubAgentBubble,做不可变 transform。
+     * 任意深度嵌套都能命中:递归先看本层,再下钻每个 SubAgent 的 [inner]。
+     */
+    private fun applyToSubAgent(
+        bubbles: List<ChatBubble>,
+        callId: String,
+        transform: (ChatBubble.SubAgentBubble) -> ChatBubble.SubAgentBubble,
+    ): List<ChatBubble> = bubbles.map { b ->
+        when {
+            b is ChatBubble.SubAgentBubble && b.callId == callId -> transform(b)
+            b is ChatBubble.SubAgentBubble ->
+                b.copy(inner = applyToSubAgent(b.inner, callId, transform))
+            else -> b
+        }
+    }
+
+    /**
+     * 把子循环里的一条原始 [AgentEvent] 应用到 SubAgent 气泡的 [inner] 列表上。
+     * 与父级 [onAgentEvent] 同构,但不更新顶层 streamingText / loadedSkillIds —— 子
+     * 循环的进度只表现为内部气泡。AssistantDelta / LoopFinished / LoopError 在子层面
+     * 不渲染,避免噪声。
+     */
+    private fun applyInnerEvent(
+        inner: List<ChatBubble>,
+        ev: AgentEvent,
+    ): List<ChatBubble> = when (ev) {
+        is AgentEvent.AssistantFinal -> if (ev.text.isBlank()) inner
+        else inner + ChatBubble.Assistant(nextId.getAndIncrement(), ev.text)
+        is AgentEvent.ToolCallStarted -> if (ev.call.name == SubAgentTools.NAME_CALL) inner
+        else inner + toolBubble(ev.call, ToolUiState.Running)
+        is AgentEvent.ToolCallCompleted -> if (ev.call.name == SubAgentTools.NAME_CALL) inner
+        else inner.map { b ->
+            if (b is ChatBubble.ToolCallView && b.name == ev.call.name && b.state == ToolUiState.Running) {
+                when (val r = ev.result) {
+                    is ToolResult.Success -> b.copy(state = ToolUiState.Success, output = r.content)
+                    is ToolResult.Failure -> b.copy(state = ToolUiState.Failure, output = r.message)
+                }
+            } else b
+        }
+        is AgentEvent.ConfirmationDenied -> inner + toolBubble(ev.call, ToolUiState.Denied, output = "已取消")
+        is AgentEvent.SubAgentStarted -> inner + ChatBubble.SubAgentBubble(
+            id = nextId.getAndIncrement(),
+            callId = ev.callId,
+            agentType = ev.agentType,
+            task = ev.task,
+            depth = ev.depth,
+            state = ToolUiState.Running,
+        )
+        is AgentEvent.SubAgentInnerEvent -> applyToSubAgent(inner, ev.callId) { sub ->
+            sub.copy(inner = applyInnerEvent(sub.inner, ev.inner))
+        }
+        is AgentEvent.SubAgentFinished -> applyToSubAgent(inner, ev.callId) { sub ->
+            sub.copy(
+                state = if (ev.reason == FinishReason.Stop) ToolUiState.Success
+                else ToolUiState.Failure,
+                finalText = ev.finalText,
+            )
+        }
+        else -> inner
     }
 
     private fun toolBubble(call: ToolCall, st: ToolUiState, output: String? = null): ChatBubble.ToolCallView {

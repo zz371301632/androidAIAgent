@@ -16,6 +16,22 @@ sealed interface ChatBubble {
         val state: ToolUiState,
         val output: String? = null,
     ) : ChatBubble
+
+    /**
+     * Sub-Agent 委派气泡。承载父调用的一次 `call_sub_agent`,内部 [inner] 递归渲染
+     * 子 Agent 自己的 Assistant / Tool / 再嵌套 SubAgent 气泡。[callId] 用于把
+     * [com.aiagent.sdk.agent.AgentEvent.SubAgentInnerEvent] 路由到对应节点。
+     */
+    data class SubAgentBubble(
+        override val id: Long,
+        val callId: String,
+        val agentType: String,
+        val task: String,
+        val depth: Int,
+        val state: ToolUiState,
+        val finalText: String? = null,
+        val inner: List<ChatBubble> = emptyList(),
+    ) : ChatBubble
 }
 
 enum class ToolUiState { Pending, Running, Success, Failure, Denied }

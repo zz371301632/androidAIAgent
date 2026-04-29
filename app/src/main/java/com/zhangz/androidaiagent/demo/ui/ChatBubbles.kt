@@ -55,6 +55,7 @@ private fun Bubble(b: ChatBubble) {
         is ChatBubble.User -> UserBubble(b.text)
         is ChatBubble.Assistant -> AssistantBubble(b.text, streaming = false)
         is ChatBubble.ToolCallView -> ToolBubble(b)
+        is ChatBubble.SubAgentBubble -> SubAgentBubbleView(b)
     }
 }
 
@@ -120,5 +121,49 @@ private fun ThinkingDots() {
     Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.padding(end = 8.dp))
         Text("思考中…", style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/**
+ * 嵌套的子 Agent 委派气泡:头部展示 agent_type / task / 状态,
+ * 内部 [ChatBubble.SubAgentBubble.inner] 递归走 [Bubble] 渲染,因此可以呈现任意
+ * 层数的 Agent → SubAgent → SubAgent 嵌套调用。
+ */
+@Composable
+private fun SubAgentBubbleView(b: ChatBubble.SubAgentBubble) {
+    val (label, color) = when (b.state) {
+        ToolUiState.Pending -> "等待" to MaterialTheme.colorScheme.tertiary
+        ToolUiState.Running -> "运行中" to MaterialTheme.colorScheme.primary
+        ToolUiState.Success -> "完成" to MaterialTheme.colorScheme.primary
+        ToolUiState.Failure -> "失败" to MaterialTheme.colorScheme.error
+        ToolUiState.Denied -> "已取消" to MaterialTheme.colorScheme.outline
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, color),
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(10.dp)) {
+            Text("🤖 子 Agent · ${b.agentType} · depth=${b.depth}", style = MaterialTheme.typography.bodyMedium)
+            Text("任务:${b.task}", style = MaterialTheme.typography.bodySmall)
+            Text(label, color = color, style = MaterialTheme.typography.labelSmall)
+            if (b.inner.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier.padding(start = 8.dp).fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    b.inner.forEach { Bubble(it) }
+                }
+            } else if (b.state == ToolUiState.Running) {
+                Spacer(Modifier.height(4.dp))
+                Text("子 Agent 思考中…", style = MaterialTheme.typography.bodySmall)
+            }
+            b.finalText?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(6.dp))
+                Text("最终回执:$it", style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
 }
