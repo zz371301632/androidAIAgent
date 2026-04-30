@@ -36,6 +36,7 @@ class AgentChatViewModel : ViewModel() {
     private val session: AgentSession = AgentSession(
         skillRegistry = AgentBootstrap.skills,
         basePersona = AgentPromptDefaults.GENERIC_REACT_PERSONA,
+        memory = AgentBootstrap.memory,
     )
     private val loop: AgentLoop = AgentBootstrap.newAgentLoop(::confirmDangerous)
     private val nextId = AtomicLong(1)

@@ -65,14 +65,15 @@ internal class SubAgentInvoker(
         log.loop("sub_agent_start id=${call.id} type=$agentType depth=$childDepth task=$task")
         emit(AgentEvent.SubAgentStarted(call.id, agentType, task, childDepth))
 
-        // 子会话:独立 history,继承父的 SkillRegistry(progressive disclosure 共享 skill 库);
-        // baseToolNames / persona / maxRounds 走 preset。
+        // 子会话:独立 history,继承父的 SkillRegistry(progressive disclosure 共享 skill 库)
+        // 与 memory(用户画像 / 长期事实跨 agent 共享);baseToolNames / persona / maxRounds 走 preset。
         val childSession = AgentSession(
             skillRegistry = session.skillRegistry,
             basePersona = preset.persona,
             baseToolNames = preset.baseToolNames,
             maxRounds = preset.maxRounds,
             depth = childDepth,
+            memory = session.memory,
         )
         // 子循环只看到 preset 允许再嵌套的子 Agent,默认空集 = 不可嵌套。
         val childRegistry = filteredSubAgents(preset.allowedSubAgentIds)

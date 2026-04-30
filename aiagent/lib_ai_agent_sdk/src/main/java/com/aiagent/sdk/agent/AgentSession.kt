@@ -1,6 +1,8 @@
 package com.aiagent.sdk.agent
 
 import com.aiagent.sdk.llm.Message
+import com.aiagent.sdk.memory.MemoryChunk
+import com.aiagent.sdk.memory.MemoryProvider
 import com.aiagent.sdk.skill.SkillRegistry
 
 /**
@@ -26,6 +28,11 @@ class AgentSession(
      * 子会话 = 父深度 + 1,递归上限由 [SubAgentInvoker.MAX_DEPTH] 强制。
      */
     val depth: Int = 0,
+    /**
+     * 长期记忆检索器。默认 [MemoryProvider.EMPTY] 等价于「不启用」,SDK 完全不
+     * 注入 `## 相关记忆` 段落,行为与历史版本一致。
+     */
+    val memory: MemoryProvider = MemoryProvider.EMPTY,
 ) {
 
     private val history = mutableListOf<Message>()
@@ -68,12 +75,32 @@ class AgentSession(
 
     /** 生成本轮要发给模型的完整消息列表(system 每轮重建)。 */
     suspend fun snapshot(): List<Message> {
-        val sys = buildSystemPrompt()
+        val chunks = retrieveMemoryChunks()
+        val sys = buildSystemPrompt(chunks)
         return listOf(Message.System(sys)) + history
     }
 
-    private suspend fun buildSystemPrompt(): String = buildString {
+    /**
+     * 用 history 里最后一条 user 消息作为 query 调 [memory]。
+     *  - history 里没有任何 user 消息(异常情况)→ 跳过,返回空;
+     *  - memory 是 [MemoryProvider.EMPTY] → 跳过,避免无谓的虚函数调用。
+     */
+    private suspend fun retrieveMemoryChunks(): List<MemoryChunk> {
+        if (memory === MemoryProvider.EMPTY) return emptyList()
+        val lastUser = history.asReversed().firstOrNull { it is Message.User } as? Message.User
+            ?: return emptyList()
+        return memory.retrieve(lastUser.content, history.toList())
+    }
+
+    private suspend fun buildSystemPrompt(memoryChunks: List<MemoryChunk>): String = buildString {
         append(basePersona.trim())
+        if (memoryChunks.isNotEmpty()) {
+            append("\n\n## 相关记忆\n")
+            memoryChunks.forEach { c ->
+                val prefix = c.source?.let { "[$it] " }.orEmpty()
+                append("- $prefix${c.text}\n")
+            }
+        }
         val all = skillRegistry.all()
         append("\n\n## 可用 Skill\n")
         if (all.isEmpty()) {

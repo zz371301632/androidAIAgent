@@ -14,6 +14,9 @@ import com.aiagent.sdk.llm.LlmClientFactory
 import com.aiagent.sdk.agent.SubAgentPreset
 import com.aiagent.sdk.agent.SubAgentRegistry
 import com.aiagent.sdk.log.AgentLoggerHolder
+import com.aiagent.sdk.memory.MemoryChunk
+import com.aiagent.sdk.memory.MemoryProvider
+import com.aiagent.sdk.memory.StaticMemory
 import com.aiagent.sdk.skill.CodeSkill
 import com.aiagent.sdk.skill.SkillRegistry
 import com.aiagent.sdk.tool.ToolRegistry
@@ -58,6 +61,13 @@ object AgentBootstrap {
      * 此时 [AgentLoop] 不会向模型暴露 `call_sub_agent` 工具。
      */
     val subAgents: SubAgentRegistry by lazy { buildSubAgentRegistry() }
+
+    /**
+     * 演示用长期记忆:静态 facts(用户画像 / 常驻偏好),每轮原样注入到 system prompt 的
+     * `## 相关记忆` 段落。业务接入时换成自家的 [MemoryProvider] 实现(SQLite FTS / 向量库等),
+     * 留 [MemoryProvider.EMPTY] 即可关闭。
+     */
+    val memory: MemoryProvider by lazy { buildSampleMemory() }
 
     val isReady: Boolean get() = AgentConfig.isConfigured
 
@@ -115,6 +125,7 @@ object AgentBootstrap {
         val session = AgentSession(
             skillRegistry = skills,
             basePersona = AgentPromptDefaults.GENERIC_REACT_PERSONA,
+            memory = memory,
         )
         policy.preloadSkillIds.forEach { session.loadSkill(it) }
         val loop = newAgentLoop(confirmDangerous = { _, _ -> policy.allowDangerous })
@@ -154,6 +165,27 @@ object AgentBootstrap {
     private fun buildSkillRegistry(): SkillRegistry = SkillRegistry().apply {
         AiCapabilityRegistry.snapshotSkills().forEach { register(CodeSkill(it)) }
     }
+
+    /**
+     * 演示用静态记忆:三条用户画像 / 常驻偏好,每轮都会原样注入。生产接入时换成
+     * 真正的检索后端即可。
+     */
+    private fun buildSampleMemory(): MemoryProvider = StaticMemory(
+        listOf(
+            MemoryChunk(
+                text = "用户所在时区 Asia/Shanghai,日期格式偏好 yyyy-MM-dd。",
+                source = "user_profile",
+            ),
+            MemoryChunk(
+                text = "用户默认开发语言是 Kotlin,Android 平台,minSdk 24。",
+                source = "user_profile",
+            ),
+            MemoryChunk(
+                text = "回答中涉及代码时优先给出可直接复制的最小可运行片段,避免长篇铺垫。",
+                source = "preference",
+            ),
+        )
+    )
 
     /**
      * 两个对照预设:研究员擅长信息整理 / 程序员擅长写代码。两者都没有 baseToolNames,
