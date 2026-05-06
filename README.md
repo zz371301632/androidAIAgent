@@ -6,6 +6,8 @@
 模板、不用维护 tool 注册表、不用手撸 OpenAI 协议解析。一切由 KSP 编译期生成 +
 SDK 运行期托管。
 
+![demo](res/demo.gif)
+
 ## 目录结构
 
 ```
