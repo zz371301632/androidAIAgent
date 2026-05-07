@@ -59,3 +59,7 @@ Thumbs.db
 # Coverage
 *.exec
 /coverage/
+
+# local release helpers (contain no secrets, but not part of the library)
+/publish-dry-run.sh
+/publish-release.sh

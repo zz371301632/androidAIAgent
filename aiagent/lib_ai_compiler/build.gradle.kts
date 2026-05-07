@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.vanniktech.publish)
 }
 
 // 纯 KSP 处理器:编译期跑,不会进任何 APK / JAR 产物。
@@ -14,6 +15,18 @@ java {
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+mavenPublishing {
+    coordinates(
+        groupId    = "io.github.zz371301632",
+        artifactId = "ai-agent-compiler",
+        version    = providers.gradleProperty("VERSION_NAME").get(),
+    )
+    pom {
+        name.set("AI Agent Compiler")
+        description.set("KSP annotation processor for androidAIAgent SDK. Scans @AiTool / @AiSkill and generates boot registration code.")
     }
 }
 
