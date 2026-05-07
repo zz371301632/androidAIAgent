@@ -15,7 +15,8 @@ androidAIAgent/
 ├── aiagent/                  ← 真正想抄走的 SDK,跟项目零耦合
 │   ├── lib_ai_annotations/   注解契约 + Runtime 接口
 │   ├── lib_ai_compiler/      KSP 处理器,扫 @AiTool / @AiSkill 生成注册代码
-│   └── lib_ai_agent_sdk/     运行时:AgentLoop / LLM 客户端 / Skill / Tool
+│   ├── lib_ai_agent_sdk/     运行时:AgentLoop / LLM 客户端 / Skill / Tool
+│   └── lib_ai_agent_ui/      可选 Compose 聊天 UI(Screen / ViewModel / Quick Tools)
 │
 └── app/                      ← Demo:演示 SDK 如何接入
     ├── DemoApp.kt            ★ 唯一接入面板:AiAgentRuntime.install(AiAgentConfig(...))
@@ -23,7 +24,7 @@ androidAIAgent/
         ├── tools/            DemoTools.kt:三个示例工具
         ├── bootstrap/        AppContextHolder + HeadlessRunner + LogcatAgentLogger
         ├── headless/         adb 派任务的策略 / 反馈
-        └── ui/               Compose 聊天 UI(可整体抄)
+        └── ui/               AgentChatActivity / HeadlessAgentActivity(壳,UI 在 lib_ai_agent_ui)
 ```
 
 ## 架构
@@ -193,13 +194,14 @@ KSP 会在 `app/build/generated/ksp/.../AiToolsBoot_<bootName>.kt` 生成一个
 
 ## 接入到自己的工程
 
-复制三件套即可:
+复制以下目录,**用不到 UI 就别复制 `lib_ai_agent_ui`**:
 
 ```
 你的工程/
-├── aiagent/lib_ai_annotations/    ← 整个目录复制
-├── aiagent/lib_ai_compiler/       ← 整个目录复制
-└── aiagent/lib_ai_agent_sdk/      ← 整个目录复制
+├── aiagent/lib_ai_annotations/    ← 必抄
+├── aiagent/lib_ai_compiler/       ← 必抄
+├── aiagent/lib_ai_agent_sdk/      ← 必抄
+└── aiagent/lib_ai_agent_ui/       ← 可选:想要现成 Compose 聊天 UI 才抄
 ```
 
 然后在自己业务模块的 `build.gradle.kts` 里:
@@ -213,6 +215,9 @@ dependencies {
     implementation(project(":aiagent:lib_ai_agent_sdk"))
     implementation(project(":aiagent:lib_ai_annotations"))
     kspDebug(project(":aiagent:lib_ai_compiler"))
+
+    // 可选:要现成聊天 UI 加这一行;不要就只收 AgentLoop 事件流自己渲染
+    implementation(project(":aiagent:lib_ai_agent_ui"))
 }
 ```
 
@@ -221,6 +226,31 @@ dependencies {
 配置就完了 —— 接入面板就这一处,其它文件不用改。需要 Context 的 `@AiTool`(弹 Toast、
 读 assets 等)按 demo 那样在 `AppContextHolder` 里持一份 Application 即可,SDK 自身不
 持有任何 Android 单例。
+
+**用现成 UI**:Activity 里 5 行:
+
+```kotlin
+class MyAgentActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { MaterialTheme { Surface { AgentChatScreenHost() } } }
+    }
+}
+```
+
+`AgentChatScreenHost` 内部用 `viewModel<AgentChatViewModel>()` 自动接 `AgentLoop`
+事件流,确认弹窗 / 子 Agent 嵌套气泡 / 流式输出 / 快捷工具栏全都现成。
+
+**自己画 UI**:不依赖 `lib_ai_agent_ui`,直接收 `AgentLoop`:
+
+```kotlin
+val loop = AiAgentRuntime.newAgentLoop(::confirmDangerous)
+val session = AgentSession(AiAgentRuntime.skills, AiAgentRuntime.persona, AiAgentRuntime.memory)
+loop.run(session, userInput).collect { event -> /* 翻译成自家 UI state */ }
+```
+
+事件类型见 `AgentEvent`。复杂的事件→气泡翻译可以参考
+[`AgentChatViewModel`](aiagent/lib_ai_agent_ui/src/main/java/com/aiagent/ui/AgentChatViewModel.kt)。
 
 ## 工具链
 
@@ -237,3 +267,4 @@ dependencies {
 - [`aiagent/README.md`](aiagent/README.md) — SDK 接入完整说明
 - [`aiagent/lib_ai_agent_sdk/README.md`](aiagent/lib_ai_agent_sdk/README.md) — Runtime 内部设计
 - [`aiagent/lib_ai_compiler/README.md`](aiagent/lib_ai_compiler/README.md) — KSP 处理器细节
+- [`aiagent/lib_ai_agent_ui/`](aiagent/lib_ai_agent_ui/) — 可选 Compose 聊天 UI(Screen / ViewModel / Quick Tools)

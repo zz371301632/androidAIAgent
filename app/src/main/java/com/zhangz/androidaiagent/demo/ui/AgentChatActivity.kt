@@ -4,22 +4,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import com.aiagent.sdk.setup.AiAgentRuntime
+import com.aiagent.ui.AgentChatScreenHost
 
 /**
- * 演示用聊天 Activity:
- *  - 仅做 ViewModel 持有 + Compose host;
- *  - onCreate 里访问一次 [AiAgentRuntime.skills],触发 KSP 注册一次性装机(Lazy)。
+ * 演示用聊天 Activity:UI 全部下沉到 `lib_ai_agent_ui` 模块;这里只做主题包裹 +
+ * 触发一次 [AiAgentRuntime.skills] 完成 KSP 注册的 Lazy 装机。接入方想完全自定义
+ * 样式时,可以直接抄这 5 行,或换成自家 Theme + 自家 ViewModel。
  */
 class AgentChatActivity : ComponentActivity() {
-
-    private val viewModel: AgentChatViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,20 +22,8 @@ class AgentChatActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
-                Surface { AgentChatScreenHost(viewModel) }
+                Surface { AgentChatScreenHost() }
             }
         }
     }
-}
-
-@Composable
-private fun AgentChatScreenHost(viewModel: AgentChatViewModel) {
-    val state by viewModel.state.collectAsState()
-    AgentChatScreen(
-        state = state,
-        onSendInput = viewModel::sendUserInput,
-        onConfirm = viewModel::resolveConfirmation,
-        onCancel = viewModel::cancel,
-        onQuickTool = viewModel::runQuickTool,
-    )
 }

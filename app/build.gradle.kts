@@ -88,16 +88,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
-    val composeBom = platform(libs.androidx.compose.bom)
-    implementation(composeBom)
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.foundation)
-    implementation(libs.androidx.compose.material3)
+    // setContent / enableEdgeToEdge:Compose 全栈 deps 由 lib_ai_agent_ui 通过 api 暴露,
+    // 这里只补一个 Activity 与 Compose 的桥接(库模块没有 Activity 概念,不便 api 出去)
     implementation(libs.androidx.activity.compose)
 
-    // AI Agent SDK:运行时 + 注解契约;KSP 处理器只在 debug 包跑
+    // AI Agent SDK + 现成的 Compose 聊天 UI;不想要 UI 的项目把下面这行删掉自己渲染即可
     implementation(project(":aiagent:lib_ai_agent_sdk"))
+    implementation(project(":aiagent:lib_ai_agent_ui"))
     implementation(project(":aiagent:lib_ai_annotations"))
     kspDebug(project(":aiagent:lib_ai_compiler"))
 

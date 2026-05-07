@@ -1,4 +1,4 @@
-package com.zhangz.androidaiagent.demo.ui
+package com.aiagent.ui
 
 import com.aiagent.runtime.Tool
 import org.json.JSONObject

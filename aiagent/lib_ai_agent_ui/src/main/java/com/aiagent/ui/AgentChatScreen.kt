@@ -1,4 +1,4 @@
-package com.zhangz.androidaiagent.demo.ui
+package com.aiagent.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,12 +20,32 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.aiagent.runtime.Tool
 import kotlinx.coroutines.launch
+
+/**
+ * 无参便捷入口:接入方在 `setContent { MaterialTheme { Surface { AgentChatScreenHost() } } }`
+ * 即可拿到一个完整的聊天页面。内部用 [viewModel] 拿默认的 [AgentChatViewModel],适合
+ * 不想自己写 ViewModel / 不想定制行为的场景。
+ */
+@Composable
+fun AgentChatScreenHost(viewModel: AgentChatViewModel = viewModel()) {
+    val state by viewModel.state.collectAsState()
+    AgentChatScreen(
+        state = state,
+        onSendInput = viewModel::sendUserInput,
+        onConfirm = viewModel::resolveConfirmation,
+        onCancel = viewModel::cancel,
+        onQuickTool = viewModel::runQuickTool,
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,4 +1,4 @@
-package com.zhangz.androidaiagent.demo.ui
+package com.aiagent.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -128,7 +128,6 @@ class AgentChatViewModel : ViewModel() {
                 _state.update { it.copy(streamingText = "") }
             }
             is AgentEvent.ToolCallStarted -> {
-                // call_sub_agent 已经由 SubAgentStarted/Finished 表达,不再额外画工具气泡。
                 if (ev.call.name != SubAgentTools.NAME_CALL) {
                     appendBubble(toolBubble(ev.call, ToolUiState.Running))
                 }
@@ -171,7 +170,7 @@ class AgentChatViewModel : ViewModel() {
                     )
                 })
             }
-            is AgentEvent.LoopFinished -> Unit // 状态在 finally 里处理
+            is AgentEvent.LoopFinished -> Unit
             is AgentEvent.LoopError -> _state.update {
                 it.copy(error = ev.cause.message ?: ev.cause.javaClass.simpleName)
             }

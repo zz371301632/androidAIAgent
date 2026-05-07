@@ -27,4 +27,5 @@ include(":app")
 include(":aiagent:lib_ai_annotations")
 include(":aiagent:lib_ai_compiler")
 include(":aiagent:lib_ai_agent_sdk")
+include(":aiagent:lib_ai_agent_ui")
  

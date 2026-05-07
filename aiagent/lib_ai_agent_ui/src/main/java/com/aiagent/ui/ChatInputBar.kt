@@ -1,4 +1,4 @@
-package com.zhangz.androidaiagent.demo.ui
+package com.aiagent.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
