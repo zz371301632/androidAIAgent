@@ -41,5 +41,6 @@ private fun AgentChatScreenHost(viewModel: AgentChatViewModel) {
         onSendInput = viewModel::sendUserInput,
         onConfirm = viewModel::resolveConfirmation,
         onCancel = viewModel::cancel,
+        onQuickTool = viewModel::runQuickTool,
     )
 }

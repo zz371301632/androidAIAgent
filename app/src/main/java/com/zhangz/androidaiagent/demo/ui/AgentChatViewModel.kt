@@ -29,7 +29,12 @@ import java.util.concurrent.atomic.AtomicLong
  */
 class AgentChatViewModel : ViewModel() {
 
-    private val _state = MutableStateFlow(ChatUiState(configured = AiAgentRuntime.isReady))
+    private val _state = MutableStateFlow(
+        ChatUiState(
+            configured = AiAgentRuntime.isReady,
+            quickTools = if (AiAgentRuntime.isReady) collectQuickTools() else emptyList(),
+        )
+    )
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     private val session: AgentSession = AgentSession(
@@ -76,6 +81,38 @@ class AgentChatViewModel : ViewModel() {
         pendingDeferred = deferred
         _state.update { it.copy(pending = PendingConfirmation(tool, args)) }
         return deferred.await()
+    }
+
+    /**
+     * 快捷工具:绕过 [AgentLoop] 直接 [Tool.execute],不写 session.history,因此 LLM
+     * 下一轮看不到本次调用。仅展示一条 [ChatBubble.ToolCallView] 反馈结果。
+     * 危险工具复用 [confirmDangerous] 的 pending 弹窗机制。
+     */
+    fun runQuickTool(tool: Tool) {
+        val st = _state.value
+        if (st.isRunning || !st.configured) return
+        runningJob = viewModelScope.launch {
+            _state.update { it.copy(isRunning = true, error = null) }
+            try {
+                if (tool.requiresConfirmation && !confirmDangerous(tool, JSONObject())) {
+                    appendBubble(quickToolBubble(tool, ToolUiState.Denied, output = "已取消"))
+                    return@launch
+                }
+                val bubbleId = nextId.getAndIncrement()
+                appendBubble(quickToolBubble(tool, ToolUiState.Running, idOverride = bubbleId))
+                val result = runCatching { tool.execute(JSONObject()) }
+                    .getOrElse { ToolResult.Failure("exception: ${it.javaClass.simpleName}: ${it.message ?: ""}") }
+                updateBubbleById(bubbleId) { b ->
+                    if (b !is ChatBubble.ToolCallView) b
+                    else when (result) {
+                        is ToolResult.Success -> b.copy(state = ToolUiState.Success, output = result.content)
+                        is ToolResult.Failure -> b.copy(state = ToolUiState.Failure, output = result.message)
+                    }
+                }
+            } finally {
+                _state.update { it.copy(isRunning = false) }
+            }
+        }
     }
 
     private fun onAgentEvent(ev: AgentEvent) {
@@ -225,6 +262,38 @@ class AgentChatViewModel : ViewModel() {
             if (idx >= 0) list[idx] = transform(list[idx] as ChatBubble.ToolCallView)
             s.copy(bubbles = list)
         }
+    }
+
+    private fun updateBubbleById(id: Long, transform: (ChatBubble) -> ChatBubble) {
+        _state.update { s ->
+            val list = s.bubbles.toMutableList()
+            val idx = list.indexOfLast { it.id == id }
+            if (idx >= 0) list[idx] = transform(list[idx])
+            s.copy(bubbles = list)
+        }
+    }
+
+    private fun quickToolBubble(
+        tool: Tool,
+        st: ToolUiState,
+        output: String? = null,
+        idOverride: Long? = null,
+    ): ChatBubble.ToolCallView = ChatBubble.ToolCallView(
+        id = idOverride ?: nextId.getAndIncrement(),
+        name = tool.name,
+        argsPreview = tool.name,
+        state = st,
+        output = output,
+    )
+
+    /**
+     * 从 [AiAgentRuntime.tools] 里挑出无参工具(`properties` 为空)。有参工具点了
+     * 也无法直接执行,UI 不暴露。schema 解析失败时按「非无参」处理,避免误触。
+     */
+    private fun collectQuickTools(): List<Tool> = AiAgentRuntime.tools.all().filter { tool ->
+        val schema = runCatching { JSONObject(tool.parametersJsonSchema) }.getOrNull() ?: return@filter false
+        val props = schema.optJSONObject("properties")
+        props == null || props.length() == 0
     }
 
     private inline fun MutableStateFlow<ChatUiState>.update(transform: (ChatUiState) -> ChatUiState) {

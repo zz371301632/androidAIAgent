@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.aiagent.runtime.Tool
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,6 +34,7 @@ fun AgentChatScreen(
     onSendInput: (String) -> Unit,
     onConfirm: (Boolean) -> Unit,
     onCancel: () -> Unit,
+    onQuickTool: (Tool) -> Unit,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -52,11 +54,18 @@ fun AgentChatScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-            ChatInputBar(
-                enabled = !state.isRunning && state.configured,
-                placeholder = if (state.configured) "和 AI 说点什么…" else "未配置 ai.deepseek.key",
-                onSend = onSendInput,
-            )
+            Column {
+                QuickToolBar(
+                    tools = state.quickTools,
+                    enabled = !state.isRunning && state.configured,
+                    onClick = onQuickTool,
+                )
+                ChatInputBar(
+                    enabled = !state.isRunning && state.configured,
+                    placeholder = if (state.configured) "和 AI 说点什么…" else "未配置 ai.deepseek.key",
+                    onSend = onSendInput,
+                )
+            }
         },
     ) { padding ->
         Column(

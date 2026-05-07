@@ -52,4 +52,6 @@ data class ChatUiState(
     val pending: PendingConfirmation? = null,
     val error: String? = null,
     val configured: Boolean = true,
+    /** 输入框上方的快捷工具栏:无参 @AiTool 列表,点击直接执行,不进 Agent 上下文。 */
+    val quickTools: List<Tool> = emptyList(),
 )
