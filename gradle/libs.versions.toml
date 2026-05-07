@@ -19,6 +19,9 @@ lifecycle = "2.6.2"
 okhttp = "4.9.3"
 coroutines = "1.7.3"
 json = "20231013"
+# 离线语音识别(demo 默认接入,接入方可换 sherpa-onnx / 云 ASR)
+vosk = "0.3.75"
+jna = "5.13.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -45,6 +48,9 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
 json = { module = "org.json:json", version.ref = "json" }
+# Vosk 官方 Android AAR;jna 是 vosk-android 的传递依赖,需要显式声明 @aar 否则拉到 jar
+vosk-android = { module = "com.alphacephei:vosk-android", version.ref = "vosk" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

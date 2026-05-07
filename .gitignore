@@ -1,3 +1,6 @@
+# Vosk 离线模型 zip(~42MB,Gradle downloadVoskModel 任务自动拉取,不进 git)
+app/src/main/assets/vosk-model-*.zip
+
 # Built application files
 *.apk
 *.aar

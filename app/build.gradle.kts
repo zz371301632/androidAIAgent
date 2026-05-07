@@ -1,3 +1,4 @@
+import java.net.URL
 import java.util.Properties
 
 plugins {
@@ -6,6 +7,28 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// ─── Vosk 离线语音模型自动获取 ────────────────────────────────────────────────
+// 把 vosk-model-small-cn-0.22.zip(~42MB)拉到 assets/。已存在则跳过 —— 幂等。
+// 不进 git(.gitignore),clone 后首次 build 会触发下载。
+val voskModelZipName = "vosk-model-small-cn-0.22.zip"
+val voskModelUrl = "https://alphacephei.com/vosk/models/$voskModelZipName"
+val voskModelAssetFile = file("src/main/assets/$voskModelZipName")
+val downloadVoskModel by tasks.registering {
+    description = "Download Vosk Chinese small model into assets/ if not present."
+    group = "build setup"
+    outputs.file(voskModelAssetFile)
+    onlyIf { !voskModelAssetFile.exists() }
+    doLast {
+        voskModelAssetFile.parentFile.mkdirs()
+        logger.lifecycle("Downloading $voskModelUrl → $voskModelAssetFile")
+        URL(voskModelUrl).openStream().use { input ->
+            voskModelAssetFile.outputStream().use { output -> input.copyTo(output) }
+        }
+        logger.lifecycle("Vosk model downloaded (${voskModelAssetFile.length() / 1024 / 1024} MB)")
+    }
+}
+tasks.named("preBuild") { dependsOn(downloadVoskModel) }
 
 // 从仓库根目录的 local.properties 读 AI 配置(不进 git)。完整可用键:
 //   ai.provider=deepseek | custom                  # 选哪家,默认 deepseek
@@ -71,6 +94,11 @@ android {
         compose = true
         buildConfig = true
     }
+
+    // Vosk 模型 zip 已经压缩过,aapt 不要再压一次 —— 否则装机解压更慢、APK 也压不下去
+    androidResources {
+        noCompress.add("zip")
+    }
 }
 
 // KSP 给本模块的生成函数后缀:bootAiTools_app()
@@ -100,6 +128,10 @@ dependencies {
 
     // SDK 公开 API 用到 JSONObject(Tool.execute 的入参),Android 平台自带 org.json
     implementation(libs.kotlinx.coroutines.android)
+
+    // Vosk 离线 ASR(demo 唯一一处接入;不想要 voice 的项目删掉这两行 + DemoApp 注入即可)
+    implementation(libs.vosk.android)
+    implementation(libs.jna) { artifact { type = "aar" } }
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

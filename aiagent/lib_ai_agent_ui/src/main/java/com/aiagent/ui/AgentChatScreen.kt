@@ -44,6 +44,9 @@ fun AgentChatScreenHost(viewModel: AgentChatViewModel = viewModel()) {
         onConfirm = viewModel::resolveConfirmation,
         onCancel = viewModel::cancel,
         onQuickTool = viewModel::runQuickTool,
+        onVoiceStart = viewModel::startVoice,
+        onVoiceStop = viewModel::stopVoice,
+        onVoiceCancel = viewModel::cancelVoice,
     )
 }
 
@@ -55,6 +58,9 @@ fun AgentChatScreen(
     onConfirm: (Boolean) -> Unit,
     onCancel: () -> Unit,
     onQuickTool: (Tool) -> Unit,
+    onVoiceStart: () -> Unit = {},
+    onVoiceStop: () -> Unit = {},
+    onVoiceCancel: () -> Unit = {},
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -84,6 +90,12 @@ fun AgentChatScreen(
                     enabled = !state.isRunning && state.configured,
                     placeholder = if (state.configured) "和 AI 说点什么…" else "未配置 ai.deepseek.key",
                     onSend = onSendInput,
+                    voiceAvailability = state.voiceAvailability,
+                    voiceRecording = state.voiceRecording,
+                    voicePartial = state.voicePartial,
+                    onVoiceStart = onVoiceStart,
+                    onVoiceStop = onVoiceStop,
+                    onVoiceCancel = onVoiceCancel,
                 )
             }
         },

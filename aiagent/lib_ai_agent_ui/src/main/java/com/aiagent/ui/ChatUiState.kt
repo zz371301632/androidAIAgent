@@ -1,6 +1,7 @@
 package com.aiagent.ui
 
 import com.aiagent.runtime.Tool
+import com.aiagent.sdk.voice.Availability
 import org.json.JSONObject
 
 /** UI 层独立的会话视图模型,与 SDK 的 Message 解耦,只装 UI 关心的字段。 */
@@ -54,4 +55,13 @@ data class ChatUiState(
     val configured: Boolean = true,
     /** 输入框上方的快捷工具栏:无参 @AiTool 列表,点击直接执行,不进 Agent 上下文。 */
     val quickTools: List<Tool> = emptyList(),
+    /**
+     * 语音引擎可用性:null 表示接入方没注入 VoiceController(UI 完全隐藏 mic);
+     * 非 null 时 UI 据 [Availability] 渲染 3 态(就绪 / 准备中 % / 不可用)。
+     */
+    val voiceAvailability: Availability? = null,
+    /** 当前是否在录音(按住 mic 期间为 true)。 */
+    val voiceRecording: Boolean = false,
+    /** 录音中实时累计的中间识别结果,松手清空。 */
+    val voicePartial: String = "",
 )

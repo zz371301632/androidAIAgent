@@ -11,6 +11,8 @@ import com.aiagent.sdk.agent.FinishReason
 import com.aiagent.sdk.agent.SubAgentTools
 import com.aiagent.sdk.llm.ToolCall
 import com.aiagent.sdk.setup.AiAgentRuntime
+import com.aiagent.sdk.voice.Availability
+import com.aiagent.sdk.voice.VoiceEvent
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +35,7 @@ class AgentChatViewModel : ViewModel() {
         ChatUiState(
             configured = AiAgentRuntime.isReady,
             quickTools = if (AiAgentRuntime.isReady) collectQuickTools() else emptyList(),
+            voiceAvailability = AiAgentRuntime.voiceController?.availability?.value,
         )
     )
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
@@ -46,6 +49,18 @@ class AgentChatViewModel : ViewModel() {
     private val nextId = AtomicLong(1)
     private var pendingDeferred: CompletableDeferred<Boolean>? = null
     private var runningJob: Job? = null
+    private var voiceJob: Job? = null
+
+    init {
+        // 把 voiceController.availability 投影到 UI state;无 controller 时不收集
+        AiAgentRuntime.voiceController?.let { controller ->
+            viewModelScope.launch {
+                controller.availability.collect { av ->
+                    _state.update { it.copy(voiceAvailability = av) }
+                }
+            }
+        }
+    }
 
     fun sendUserInput(text: String) {
         if (text.isBlank() || _state.value.isRunning) return
@@ -88,6 +103,55 @@ class AgentChatViewModel : ViewModel() {
      * 下一轮看不到本次调用。仅展示一条 [ChatBubble.ToolCallView] 反馈结果。
      * 危险工具复用 [confirmDangerous] 的 pending 弹窗机制。
      */
+    /**
+     * 按下 mic 的统一入口。三态分支:
+     *  - [Availability.Ready]:开一段录音,Partial 实时回显,Final 自动 [sendUserInput];
+     *  - [Availability.Unavailable]:触发模型准备(下载 / 解压),不录音;
+     *  - [Availability.Preparing]:no-op,等准备完。
+     * 已经在录音 / 正在跑 Agent / 没有 voiceController 时一律 no-op。
+     */
+    fun startVoice() {
+        val controller = AiAgentRuntime.voiceController ?: return
+        val st = _state.value
+        if (st.isRunning || st.voiceRecording || !st.configured) return
+        when (st.voiceAvailability) {
+            is Availability.Unavailable -> { controller.prepare(); return }
+            is Availability.Preparing -> return
+            Availability.Ready -> Unit
+            null -> return
+        }
+        _state.update { it.copy(voiceRecording = true, voicePartial = "", error = null) }
+        voiceJob = viewModelScope.launch {
+            var finalText: String? = null
+            try {
+                controller.start().collect { ev ->
+                    when (ev) {
+                        is VoiceEvent.Partial -> _state.update { it.copy(voicePartial = ev.text) }
+                        is VoiceEvent.Final -> { finalText = ev.text }
+                        is VoiceEvent.Error -> _state.update { it.copy(error = ev.message) }
+                        VoiceEvent.Cancelled -> Unit
+                    }
+                }
+            } finally {
+                _state.update { it.copy(voiceRecording = false, voicePartial = "") }
+                // 只有走到 Final 才 auto-send;cancel / error 不发(避免「手势移出」误触发)
+                finalText?.takeIf { it.isNotBlank() }?.let { sendUserInput(it) }
+            }
+        }
+    }
+
+    /** 松手:让引擎收尾本段并发出 Final。collect 在 finally 里 auto-send。 */
+    fun stopVoice() {
+        if (_state.value.voiceRecording) AiAgentRuntime.voiceController?.stop()
+    }
+
+    /** 手势移出按钮区:取消本段,不 auto-send。 */
+    fun cancelVoice() {
+        if (!_state.value.voiceRecording) return
+        voiceJob?.cancel()
+        AiAgentRuntime.voiceController?.stop()
+    }
+
     fun runQuickTool(tool: Tool) {
         val st = _state.value
         if (st.isRunning || !st.configured) return

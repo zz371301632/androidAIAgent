@@ -11,6 +11,7 @@ import com.aiagent.sdk.setup.AiAgentConfig
 import com.aiagent.sdk.setup.AiAgentRuntime
 import com.zhangz.androidaiagent.demo.bootstrap.AppContextHolder
 import com.zhangz.androidaiagent.demo.bootstrap.LogcatAgentLogger
+import com.zhangz.androidaiagent.demo.voice.VoskVoiceController
 
 /**
  * Demo Application:**接入 SDK 的全部决策都集中在本文件**的 [AiAgentConfig] 里。
@@ -48,6 +49,9 @@ class DemoApp : Application() {
                         ),
                     )
                 ),
+                // Voice ASR 仅 debug 装机:用 Vosk 离线模型(中文 small,~42MB,assets/ 内置)。
+                // 不想要 voice 的项目把这一行删 + app/build.gradle.kts 里 vosk 依赖删即可。
+                voiceController = if (BuildConfig.DEBUG) VoskVoiceController(this) else null,
                 subAgentPresets = listOf(
                     SubAgentPreset(
                         id = "researcher",

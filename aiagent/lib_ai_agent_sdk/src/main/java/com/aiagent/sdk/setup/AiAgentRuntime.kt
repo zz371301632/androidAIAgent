@@ -15,6 +15,7 @@ import com.aiagent.sdk.memory.MemoryProvider
 import com.aiagent.sdk.skill.CodeSkill
 import com.aiagent.sdk.skill.SkillRegistry
 import com.aiagent.sdk.tool.ToolRegistry
+import com.aiagent.sdk.voice.VoiceController
 import org.json.JSONObject
 
 /**
@@ -56,6 +57,11 @@ data class AiAgentConfig(
     val memory: MemoryProvider = MemoryProvider.EMPTY,
     /** Sub-Agent 预设列表;空列表等价于不开 sub-agent,SDK 不会向模型暴露 call_sub_agent。 */
     val subAgentPresets: List<SubAgentPreset> = emptyList(),
+    /**
+     * 语音输入控制器;留 null 时 UI 不展示 mic 按钮。可插拔 —— 测试可以接系统
+     * SpeechRecognizer,生产可以接 Vosk / sherpa-onnx / 云 ASR。
+     */
+    val voiceController: VoiceController? = null,
 )
 
 /**
@@ -121,6 +127,9 @@ object AiAgentRuntime {
 
     /** [AiAgentConfig.persona] 的快捷访问。 */
     val persona: String get() = config.persona
+
+    /** [AiAgentConfig.voiceController] 的快捷访问;装机前 / 未配置时返回 null。 */
+    val voiceController: VoiceController? get() = _config?.voiceController
 
     /**
      * 用本运行时持有的 LLM / 工具 / SubAgent 装一个 [AgentLoop]。每次会话各起一个,
