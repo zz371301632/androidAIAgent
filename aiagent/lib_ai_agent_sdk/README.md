@@ -25,7 +25,6 @@ com/aiagent/sdk/
 | `AgentEvent.kt` | 事件流密封类:Token / ToolStarted / ToolCompleted / AwaitingConfirmation / Done |
 | `ToolInvoker.kt` | 调度 `Tool.execute(args)`,处理 requiresConfirmation 暂停 / 错误兜底 |
 | `StreamAccumulator.kt` | SSE 流式 chunk 拼装为完整 message + tool_calls |
-| `AgentPromptDefaults.kt` | 默认 system prompt 模板(含 list_skills / load_skill 用法说明) |
 
 ### llm/
 | 文件 | 职责 |

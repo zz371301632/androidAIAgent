@@ -10,8 +10,8 @@ import com.aiagent.runtime.SkillManifest
  *    适合用一两段文案就能讲清楚的轻量 skill;
  *  - 需要给模型完整操作手册 / 表格 / 示例的重业务流程,仍然推荐 [AssetSkill]。
  *
- * 由 [com.aiagent.runtime.AiCapabilityRegistry.snapshotSkills] 在 AgentBootstrap 启动时
- * 统一捡走,业务模块零样板。
+ * 由 [com.aiagent.runtime.AiCapabilityRegistry.snapshotSkills] 在
+ * [com.aiagent.sdk.setup.AiAgentRuntime] 装机时统一捡走,业务模块零样板。
  */
 class CodeSkill(private val manifest: SkillManifest) : Skill {
 

@@ -4,7 +4,7 @@ package com.zhangz.androidaiagent.demo.headless
  * Headless 任务的执行策略。
  *
  * 由 [com.zhangz.androidaiagent.demo.ui.HeadlessAgentActivity] 从 Intent extras 解析得到,
- * 然后传给 [com.zhangz.androidaiagent.demo.bootstrap.AgentBootstrap.runHeadless]。
+ * 然后传给 [com.zhangz.androidaiagent.demo.bootstrap.HeadlessRunner.run]。
  *
  * 默认策略偏「安全」:危险工具一律拒绝,不预加载 skill,模型自己用 list_skills /
  * load_skill 探索。需要更激进的行为时由命令行 extras 显式开启。

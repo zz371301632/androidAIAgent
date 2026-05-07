@@ -6,12 +6,11 @@ import com.aiagent.runtime.Tool
 import com.aiagent.runtime.ToolResult
 import com.aiagent.sdk.agent.AgentEvent
 import com.aiagent.sdk.agent.AgentLoop
-import com.aiagent.sdk.agent.AgentPromptDefaults
 import com.aiagent.sdk.agent.AgentSession
 import com.aiagent.sdk.agent.FinishReason
 import com.aiagent.sdk.agent.SubAgentTools
 import com.aiagent.sdk.llm.ToolCall
-import com.zhangz.androidaiagent.demo.bootstrap.AgentBootstrap
+import com.aiagent.sdk.setup.AiAgentRuntime
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,22 +29,22 @@ import java.util.concurrent.atomic.AtomicLong
  */
 class AgentChatViewModel : ViewModel() {
 
-    private val _state = MutableStateFlow(ChatUiState(configured = AgentBootstrap.isReady))
+    private val _state = MutableStateFlow(ChatUiState(configured = AiAgentRuntime.isReady))
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
 
     private val session: AgentSession = AgentSession(
-        skillRegistry = AgentBootstrap.skills,
-        basePersona = AgentPromptDefaults.GENERIC_REACT_PERSONA,
-        memory = AgentBootstrap.memory,
+        skillRegistry = AiAgentRuntime.skills,
+        basePersona = AiAgentRuntime.persona,
+        memory = AiAgentRuntime.memory,
     )
-    private val loop: AgentLoop = AgentBootstrap.newAgentLoop(::confirmDangerous)
+    private val loop: AgentLoop = AiAgentRuntime.newAgentLoop(::confirmDangerous)
     private val nextId = AtomicLong(1)
     private var pendingDeferred: CompletableDeferred<Boolean>? = null
     private var runningJob: Job? = null
 
     fun sendUserInput(text: String) {
         if (text.isBlank() || _state.value.isRunning) return
-        if (!AgentBootstrap.isReady) {
+        if (!AiAgentRuntime.isReady) {
             _state.update { it.copy(error = "AI key 未配置,请在 local.properties 写入 ai.deepseek.key") }
             return
         }

@@ -18,10 +18,11 @@ androidAIAgent/
 │   └── lib_ai_agent_sdk/     运行时:AgentLoop / LLM 客户端 / Skill / Tool
 │
 └── app/                      ← Demo:演示 SDK 如何接入
+    ├── DemoApp.kt            ★ 唯一接入面板:AiAgentRuntime.install(AiAgentConfig(...))
     └── com.zhangz.androidaiagent.demo
         ├── tools/            DemoTools.kt:三个示例工具
-        ├── config/           AgentConfig.kt:DeepSeek profile 装配
-        ├── bootstrap/        AgentBootstrap.kt:统一入口
+        ├── bootstrap/        AppContextHolder + HeadlessRunner + LogcatAgentLogger
+        ├── headless/         adb 派任务的策略 / 反馈
         └── ui/               Compose 聊天 UI(可整体抄)
 ```
 
@@ -66,28 +67,48 @@ flowchart LR
 4. 入口页点「打开 AI 助手」→ 输入「现在几点?」→ 模型会调 `device_time` 工具,把 UTC 时间放在气泡里返回。
 5. 试试「弹个 Toast 说你好」→ 走 `show_toast`;再试「清空历史」→ 会先弹**确认对话框**,这是 `requiresConfirmation = true` 的演示。
 
-### 换一家 LLM provider
+### 接入面板:`AiAgentConfig`
 
-SDK 已经把「OpenAI 兼容协议 + 可选自定义 header / body」的差异收敛到
-`LlmProviderProfile`,所以**换 provider 就是换一个 profile**。两条路:
-
-**A. 默认 DeepSeek 之外的内置 profile**:在 `DemoApp.onCreate` 里给 `AgentConfig`
-注入,**必须在第一次访问 `AgentBootstrap.llmClient` 之前设**(lazy 单例只构造一次):
+**所有接入决策都集中在 `DemoApp.onCreate` 里的 `AiAgentRuntime.install(...)` 一处**,
+其它文件零改动:
 
 ```kotlin
-AgentConfig.profileOverride = LlmProviderProfile.siliconFlow(
+class DemoApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        AppContextHolder.application = this           // 仅服务需要 Context 的 @AiTool
+        AiAgentRuntime.install(AiAgentConfig(
+            kspBootstraps   = listOf(::bootAiTools_app),  // 必填:KSP 生成函数,多模块就列多个
+            persona         = MY_AGENT_PERSONA,           // 必填:你的 Agent 是谁,SDK 不替你想
+            profile         = LlmProviderProfile.deepSeekOfficial(...), // 想接哪家直接传哪家
+            logger          = LogcatAgentLogger,          // 可选,默认 noop
+            memory          = StaticMemory(listOf(/* facts */)), // 可选,默认 EMPTY
+            subAgentPresets = listOf(SubAgentPreset(...)),// 可选,默认空(不开 sub-agent)
+        ))
+    }
+}
+```
+
+**SDK 不替你做任何业务向假设** —— `kspBootstraps` 与 `persona` 都是必填(persona 是
+「我的 Agent 是谁」的显式声明,接入方必须自己给一份);其余字段空就是真空,与「不开启
+该能力」等价。
+
+### 换一家 LLM provider
+
+SDK 把「OpenAI 兼容协议 + 可选自定义 header / body」的差异收敛到
+`LlmProviderProfile`,**换 provider 就是换一个 profile**:
+
+```kotlin
+// A. SDK 内置的 SiliconFlow profile
+profile = LlmProviderProfile.siliconFlow(
     baseUrl = "https://api.siliconflow.cn",
     apiKey  = "sk-...",
     model   = "deepseek-ai/DeepSeek-V3",
 )
-```
 
-**B. 自部署 / 公司内网 / 或者任何需要额外 header 的网关**:用最底层的
-`LlmProviderProfile(...)` 自己写一个 `decorate` lambda,SDK 会在每次发请求前调一次:
-
-```kotlin
-AgentConfig.profileOverride = LlmProviderProfile(
-    provider = LlmProvider.CUSTOM_GATEWAY,        // 任选一个最贴近的枚举
+// B. 自部署 / 公司内网网关:用最底层构造器,自己写 decorate(每次发请求前调一次)
+profile = LlmProviderProfile(
+    provider = LlmProvider.CUSTOM_GATEWAY,
     baseUrl  = "https://your-gateway.example.com",
     apiKey   = "...",
     model    = "deepseek-chat",
@@ -98,6 +119,10 @@ AgentConfig.profileOverride = LlmProviderProfile(
     },
 )
 ```
+
+> Demo 工程额外接了一条 BuildConfig → `local.properties` 的兜底链(见
+> `DemoApp.profileFromBuildConfig`),让人不改代码也能切 key——业务接入想要更直接的
+> 写法,直接传一个 profile 写死就行,把那个私有方法整段删掉即可。
 
 > 想把 baseUrl / key / model 也搬出 git?把它们写进 `local.properties`,
 > 在 `app/build.gradle.kts` 加 `buildConfigField` 透传到代码里读 BuildConfig 即可
@@ -137,7 +162,7 @@ adb logcat -s AiAgent_Headless,AiAgent_Loop,AiAgent_Req,AiAgent_Resp
 | `loadSkills` | String,默认空 | 逗号分隔的 skill id,启动前预加载 |
 
 实现:`HeadlessAgentActivity`(`Theme.NoDisplay` + `onCreate` 立即 `finish`)→
-`AgentBootstrap.runHeadless`(ApplicationScope 跑 AgentLoop,Activity 销毁不影响)→
+`HeadlessRunner.run`(ApplicationScope 跑 AgentLoop,Activity 销毁不影响)→
 `HeadlessReporter`(logcat + Toast)。仅 `BuildConfig.DEBUG` 真正执行,release 包
 进入即 finish;真要彻底隔离可把 manifest 那条 activity 搬到 `app/src/debug/`。
 
@@ -191,8 +216,11 @@ dependencies {
 }
 ```
 
-最后参考 [`app/.../bootstrap/AgentBootstrap.kt`](app/src/main/java/com/zhangz/androidaiagent/demo/bootstrap/AgentBootstrap.kt)
-照搬一份 80 行的入口即可。
+最后参考 [`app/.../DemoApp.kt`](app/src/main/java/com/zhangz/androidaiagent/DemoApp.kt)
+在自家 `Application.onCreate` 里调一次 `AiAgentRuntime.install(AiAgentConfig(...))`,
+配置就完了 —— 接入面板就这一处,其它文件不用改。需要 Context 的 `@AiTool`(弹 Toast、
+读 assets 等)按 demo 那样在 `AppContextHolder` 里持一份 Application 即可,SDK 自身不
+持有任何 Android 单例。
 
 ## 工具链
 

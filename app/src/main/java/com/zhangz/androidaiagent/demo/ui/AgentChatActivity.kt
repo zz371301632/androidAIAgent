@@ -10,12 +10,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.zhangz.androidaiagent.demo.bootstrap.AgentBootstrap
+import com.aiagent.sdk.setup.AiAgentRuntime
 
 /**
  * 演示用聊天 Activity:
  *  - 仅做 ViewModel 持有 + Compose host;
- *  - onCreate 里访问一次 [AgentBootstrap.skills],触发 KSP 注册一次性装机(Lazy)。
+ *  - onCreate 里访问一次 [AiAgentRuntime.skills],触发 KSP 注册一次性装机(Lazy)。
  */
 class AgentChatActivity : ComponentActivity() {
 
@@ -23,7 +23,7 @@ class AgentChatActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AgentBootstrap.skills
+        AiAgentRuntime.skills
         enableEdgeToEdge()
         setContent {
             MaterialTheme {

@@ -75,7 +75,7 @@ KSP round 1
 |---|---|
 | 加新注解字段 | 同步改 `lib_ai_annotations` 注解类 + `Model.kt` parser + `SourceWriter.kt` emit |
 | 放宽返回类型(如支持 `Map`) | 改 `ExecuteBodyWriter.kt` + 顶层 README + `lib_ai_annotations/AiTool.kt` 的 kdoc 约束说明 |
-| 改 generated 包名 | 业务侧 `AgentBootstrap` 里调 `bootAiTools_*` 的 import 全部失效 |
+| 改 generated 包名 | 业务侧 `AiAgentRuntime.install` 里 `kspBootstraps` 引用 `bootAiTools_*` 的 import 全部失效 |
 | 改 SchemaWriter 输出格式 | 模型看到的 JSON Schema 变形,可能影响调用准确率,跑一轮真机验证 |
 
 ## 调试技巧

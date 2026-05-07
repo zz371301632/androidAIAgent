@@ -18,7 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.zhangz.androidaiagent.demo.config.AgentConfig
+import com.aiagent.sdk.setup.AiAgentRuntime
 import com.zhangz.androidaiagent.demo.ui.AgentChatActivity
 import com.zhangz.androidaiagent.ui.theme.AndroidAIAgentTheme
 
@@ -49,7 +49,7 @@ private fun Home(modifier: Modifier = Modifier) {
     ) {
         Text("AI Agent SDK Demo", style = MaterialTheme.typography.headlineSmall)
         Text(
-            if (AgentConfig.isConfigured) "已检测到 DeepSeek key,可直接对话" else "未配置 ai.deepseek.key,请填 local.properties 后重新构建",
+            if (AiAgentRuntime.isReady) "已检测到 DeepSeek key,可直接对话" else "未配置 ai.deepseek.key,请填 local.properties 后重新构建",
             style = MaterialTheme.typography.bodyMedium,
         )
         Button(onClick = { ctx.startActivity(Intent(ctx, AgentChatActivity::class.java)) }) {

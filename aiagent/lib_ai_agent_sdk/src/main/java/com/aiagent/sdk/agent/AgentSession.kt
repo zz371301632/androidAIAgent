@@ -15,8 +15,8 @@ import com.aiagent.sdk.skill.SkillRegistry
  * - loadedSkillIds  按加载顺序保留,影响 system 拼装顺序与 [activeToolNames]。
  * - snapshot()  生成「最新 system + 历史」的不可变列表给 LlmClient。
  *
- * `basePersona` 由集成方提供,SDK 不内置任何业务向 persona 文案;若集成方想要一份
- * 通用 ReAct 风格的回退,见 [com.aiagent.sdk.agent.AgentPromptDefaults]。
+ * `basePersona` 由集成方提供,SDK 不内置任何业务向 persona 文案——「我是谁」由接入方
+ * 在 [com.aiagent.sdk.setup.AiAgentConfig] 里显式声明并透传到这里。
  */
 class AgentSession(
     val skillRegistry: SkillRegistry,

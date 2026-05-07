@@ -3,7 +3,7 @@ package com.zhangz.androidaiagent.demo.tools
 import android.widget.Toast
 import com.aiagent.annotations.AiSkill
 import com.aiagent.annotations.AiTool
-import com.zhangz.androidaiagent.AppContextHolder
+import com.zhangz.androidaiagent.demo.bootstrap.AppContextHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -35,7 +35,7 @@ object DemoTools {
     )
     suspend fun showToast(message: String): String = withContext(Dispatchers.Main) {
 
-        Toast.makeText(AppContextHolder.context, message, Toast.LENGTH_SHORT).show()
+        Toast.makeText(AppContextHolder.appContext, message, Toast.LENGTH_SHORT).show()
         "toast_shown"
     }
 
@@ -60,7 +60,7 @@ object DemoTools {
         requiresConfirmation = true,
     )
     suspend fun clearDemoHistory(): String = withContext(Dispatchers.Main) {
-        Toast.makeText(AppContextHolder.context, "历史已清空(演示)", Toast.LENGTH_SHORT).show()
+        Toast.makeText(AppContextHolder.appContext, "历史已清空(演示)", Toast.LENGTH_SHORT).show()
         "cleared"
     }
 }

@@ -7,7 +7,8 @@ import com.google.devtools.ksp.symbol.KSFile
 /**
  * 把解析后的 [ParsedTool] / [ParsedSkill] 写成单一 .kt 源文件:
  *  - 每个 tool 一个 `class XxxAiTool : Tool`,放在 `com.aiagent.generated.tools`;
- *  - 一个顶层 `fun bootAiTools_<bootName>()`,业务方在 AgentBootstrap 显式调用一次。
+ *  - 一个顶层 `fun bootAiTools_<bootName>()`,业务方通过 AiAgentRuntime.install 的
+ *    `kspBootstraps` 列入,装机时统一回调一次。
  *
  * 把所有产物塞同一个文件、同一个包,省掉跨文件 `internal` / import 的麻烦,
  * 也方便用户出问题时直接打开 build/generated 里看一眼实际生成内容。
@@ -63,7 +64,7 @@ internal class SourceWriter(
     private fun writeBootFunction(w: java.io.Writer, tools: List<ParsedTool>, skills: List<ParsedSkill>) {
         val fnName = "bootAiTools_${sanitize(bootName)}"
         w.write("/**\n")
-        w.write(" * 业务方在 AgentBootstrap 显式调用本函数完成 tool / skill 注册。\n")
+        w.write(" * 业务方把本函数引用列入 AiAgentRuntime.install 的 kspBootstraps,装机时统一回调。\n")
         w.write(" * 重复调用会因 AiCapabilityRegistry 的去重逻辑抛出 IllegalStateException。\n")
         w.write(" */\n")
         w.write("fun $fnName() {\n")

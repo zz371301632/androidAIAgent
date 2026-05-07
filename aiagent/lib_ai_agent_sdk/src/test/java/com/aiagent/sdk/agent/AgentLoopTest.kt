@@ -49,6 +49,8 @@ private class FakeSkill(
     override suspend fun loadInstructions(): String = instructions
 }
 
+private const val TEST_PERSONA = "test persona"
+
 private fun emptyRegistry(): SkillRegistry = SkillRegistry()
 private fun newSession(
     registry: SkillRegistry = emptyRegistry(),
@@ -56,7 +58,7 @@ private fun newSession(
     maxRounds: Int = AgentSession.DEFAULT_MAX_ROUNDS,
 ) = AgentSession(
     skillRegistry = registry,
-    basePersona = AgentPromptDefaults.GENERIC_REACT_PERSONA,
+    basePersona = TEST_PERSONA,
     baseToolNames = baseTools,
     maxRounds = maxRounds,
 )
@@ -194,7 +196,7 @@ class AgentLoopTest {
         ))
         val session = AgentSession(
             skillRegistry = registry,
-            basePersona = AgentPromptDefaults.GENERIC_REACT_PERSONA,
+            basePersona = TEST_PERSONA,
         )
         AgentLoop(llm, tools).run(session, "切账号").toList()
 
@@ -231,7 +233,7 @@ class AgentLoopTest {
             .run(
                 AgentSession(
                     skillRegistry = registry,
-                    basePersona = AgentPromptDefaults.GENERIC_REACT_PERSONA,
+                    basePersona = TEST_PERSONA,
                 ),
                 "列表",
             ).toList()

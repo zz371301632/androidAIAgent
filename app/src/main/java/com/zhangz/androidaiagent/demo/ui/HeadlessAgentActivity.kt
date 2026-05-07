@@ -4,7 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import com.zhangz.androidaiagent.BuildConfig
-import com.zhangz.androidaiagent.demo.bootstrap.AgentBootstrap
+import com.zhangz.androidaiagent.demo.bootstrap.HeadlessRunner
 import com.zhangz.androidaiagent.demo.headless.HeadlessPolicy
 
 /**
@@ -29,7 +29,7 @@ import com.zhangz.androidaiagent.demo.headless.HeadlessPolicy
  *
  * 设计:
  *  - `Theme.NoDisplay` + `onCreate` 立刻 `finish()`:Activity 视觉上不出现,
- *    但已经把任务派给 [AgentBootstrap.runHeadless] 在 ApplicationScope 跑,
+ *    但已经把任务派给 [HeadlessRunner.run] 在 ApplicationScope 跑,
  *    Activity finish 不影响协程。
  *  - 所有反馈(任务派单 / 完成 / 失败 / 拒绝)走 logcat `AiAgent_Headless` + Toast,
  *    详见 [com.zhangz.androidaiagent.demo.headless.HeadlessReporter]。
@@ -57,6 +57,6 @@ class HeadlessAgentActivity : Activity() {
             allowDangerous = intent?.getBooleanExtra(HeadlessPolicy.EXTRA_ALLOW_DANGEROUS, false) ?: false,
             preloadSkillIds = HeadlessPolicy.parseSkillIds(intent?.getStringExtra(HeadlessPolicy.EXTRA_LOAD_SKILLS)),
         )
-        AgentBootstrap.runHeadless(applicationContext, task, policy)
+        HeadlessRunner.run(applicationContext, task, policy)
     }
 }
