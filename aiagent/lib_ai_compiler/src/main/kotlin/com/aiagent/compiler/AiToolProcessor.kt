@@ -78,6 +78,7 @@ internal class AiToolProcessor(
             ownerFqn = parent.qualifiedName!!.asString(),
             functionName = fn.simpleName.asString(),
             toolName = ann.arg("name", "").ifBlank { snakeCase(fn.simpleName.asString()) },
+            nameCN = ann.arg("nameCN", ""),
             description = ann.arg("description", ""),
             requiresConfirmation = ann.arg("requiresConfirmation", false),
             category = ann.arg("category", ""),

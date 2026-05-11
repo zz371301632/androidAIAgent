@@ -34,6 +34,12 @@ annotation class AiTool(
      */
     val name: String = "",
 
+    /**
+     * 工具中文名,用于在 QuickToolBar 等 UI 组件中展示给用户。
+     * 留空时 UI 回退到 [name]。对模型不可见。
+     */
+    val nameCN: String = "",
+
     /** 给模型看的功能简介。一句话讲清楚「能做什么 / 用在什么场景」。 */
     val description: String,
 

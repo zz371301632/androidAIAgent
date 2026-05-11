@@ -42,6 +42,7 @@ object DemoTools {
     @AiTool(
         description = "查询设备当前时间,以 ISO-8601 字符串返回(UTC),用于「现在几点」类问答。",
         category = "demo",
+        nameCN = "当前时间"
     )
     suspend fun deviceTime(): String {
         val fmt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {

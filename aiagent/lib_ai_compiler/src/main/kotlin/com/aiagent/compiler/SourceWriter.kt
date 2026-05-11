@@ -47,6 +47,7 @@ internal class SourceWriter(
         val schema = SchemaWriter.build(t)
         w.write("internal class $cls : Tool {\n")
         w.write("    override val name: String = ${quote(t.toolName)}\n")
+        w.write("    override val nameCN: String = ${quote(t.nameCN)}\n")
         w.write("    override val description: String = ${quote(t.description)}\n")
         w.write("    override val parametersJsonSchema: String = ${quote(schema)}\n")
         w.write("    override val requiresConfirmation: Boolean = ${t.requiresConfirmation}\n")

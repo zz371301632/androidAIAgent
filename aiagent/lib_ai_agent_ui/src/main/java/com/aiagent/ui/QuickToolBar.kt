@@ -33,7 +33,7 @@ internal fun QuickToolBar(
             AssistChip(
                 onClick = { if (enabled) onClick(tool) },
                 enabled = enabled,
-                label = { Text(tool.name) },
+                label = { Text(tool.nameCN.ifBlank { tool.name }) },
                 colors = AssistChipDefaults.assistChipColors(),
             )
         }

@@ -18,6 +18,12 @@ interface Tool {
     /** 工具名,即模型 tool_calls 里的 name。需要全局唯一。 */
     val name: String
 
+    /**
+     * 工具中文名,用于 UI 展示(QuickToolBar 等)。对模型不可见。
+     * 空串表示未设置,UI 应回退到 [name]。
+     */
+    val nameCN: String get() = ""
+
     /** 给模型看的能力描述。 */
     val description: String
 

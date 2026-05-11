@@ -15,6 +15,8 @@ internal data class ParsedTool(
     val functionName: String,
     /** 工具名(模型可见,snake_case,默认从 functionName 推)。 */
     val toolName: String,
+    /** 工具中文名(UI 展示用,对模型不可见)。空串表示未设置。 */
+    val nameCN: String,
     /** 工具描述。 */
     val description: String,
     /** 是否需要二次确认。 */
